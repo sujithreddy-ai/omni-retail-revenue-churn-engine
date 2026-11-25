@@ -1,7 +1,11 @@
-import json, os
+import json
+import os
 from pathlib import Path
-import pandas as pd, plotly.express as px, streamlit as st
+import pandas as pd
+import plotly.express as px
+import streamlit as st
 from dotenv import load_dotenv
+
 load_dotenv()
 
 st.set_page_config(page_title="Revenue & Churn Engine", layout="wide")
@@ -16,11 +20,15 @@ reg = st.sidebar.multiselect("Region", sorted(df["region"].unique()), default=so
 plan = st.sidebar.multiselect("Plan Tier", sorted(df["plan_tier"].unique()), default=sorted(df["plan_tier"].unique()))
 view = df[df["region"].isin(reg) & df["plan_tier"].isin(plan)]
 
+total_rev = view["revenue_90d_inr"].sum()
+total_risk = view["expected_revenue_at_risk_inr"].sum()
+roc_auc = metrics["roc_auc"]
+
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Filtered Accounts", f"{len(view):,}")
-c2.metric("90d Revenue", f"INR {view["revenue_90d_inr"].sum():,.0f}")
-c3.metric("Revenue at Risk", f"INR {view["expected_revenue_at_risk_inr"].sum():,.0f}")
-c4.metric("Model ROC-AUC", f"{metrics["roc_auc"]:.4f}")
+c2.metric("90d Revenue", f"INR {total_rev:,.0f}")
+c3.metric("Revenue at Risk", f"INR {total_risk:,.0f}")
+c4.metric("Model ROC-AUC", f"{roc_auc:.4f}")
 
 save_rate = st.slider("Targeted Retention Save Rate (%)", 5, 50, 20)
 cost_per_acct = st.number_input("Outreach Cost per High-Risk Account (INR)", min_value=100, max_value=25000, value=1500, step=100)
@@ -28,7 +36,12 @@ high_risk = view[view["risk_tier"] == "High"]
 projected_saved = high_risk["expected_revenue_at_risk_inr"].sum() * (save_rate / 100.0)
 campaign_cost = len(high_risk) * cost_per_acct
 net_gain = projected_saved - campaign_cost
-st.info(f"High-Risk Accounts: {len(high_risk):,} | Projected Retained 90d Revenue: INR {projected_saved:,.0f} | Campaign Cost: INR {campaign_cost:,.0f} | Net Impact: INR {net_gain:,.0f}")
+st.info(
+    f"High-Risk Accounts: {len(high_risk):,} | "
+    f"Projected Retained 90d Revenue: INR {projected_saved:,.0f} | "
+    f"Campaign Cost: INR {campaign_cost:,.0f} | "
+    f"Net Impact: INR {net_gain:,.0f}"
+)
 
 col_a, col_b = st.columns(2)
 with col_a:
@@ -46,6 +59,12 @@ if st.button("Generate Executive Retention Brief"):
         from google import genai
         client = genai.Client(api_key=api_key)
         model = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
-        prompt = f"Summarize in 3 crisp executive bullets for a VP of Revenue in India: {len(high_risk)} high-risk accounts out of {len(view)}, INR {view[\"expected_revenue_at_risk_inr\"].sum():,.0f} revenue at risk, top drivers {metrics[\"top_features\"]}, projected net impact INR {net_gain:,.0f} at {save_rate}% save rate."
+        top_feats = metrics["top_features"]
+        prompt = (
+            f"Summarize in 3 crisp executive bullets for a VP of Revenue in India: "
+            f"{len(high_risk)} high-risk accounts out of {len(view)}, "
+            f"INR {total_risk:,.0f} revenue at risk, top drivers {top_feats}, "
+            f"projected net impact INR {net_gain:,.0f} at {save_rate}% save rate."
+        )
         resp = client.models.generate_content(model=model, contents=prompt)
         st.write(resp.text)
