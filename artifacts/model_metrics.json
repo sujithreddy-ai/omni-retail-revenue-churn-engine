@@ -1,0 +1,18 @@
+{
+  "total_customers": 25000,
+  "baseline_churn_rate": 0.1133,
+  "roc_auc": 0.7906,
+  "pr_auc": 0.3383,
+  "total_90d_revenue_inr": 1753660838.54,
+  "total_revenue_at_risk_inr": 120329172.78,
+  "top_features": {
+    "days_since_last_order": 0.3727,
+    "rev_growth_pct": 0.1637,
+    "support_tickets_90d": 0.1322,
+    "tenure_months": 0.1256,
+    "revenue_90d_inr": 0.0697,
+    "rfm_score": 0.039,
+    "prev_90d_revenue_inr": 0.0366,
+    "discount_rate": 0.0214
+  }
+}
